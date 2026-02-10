@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
             await animateWheel(winningIndex);
             console.log('[SPIN] Step 4: Animation complete');
             
-            // === STEP 5: Update remaining count in Firebase using Transaction ===
+            // === STEP 5: Update remaining count in Firebase ===
             // 3 cases:
             //   remaining > 0  → decrease by 1
             //   remaining === 0 → should NEVER reach here (filtered by getEligibleIndices)
@@ -206,30 +206,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (winningSegment.remaining === -1) {
                 // CASE -1: Unlimited prize → no update needed
                 console.log('[SPIN] Step 5: Prize is unlimited (-1), no update needed');
-            } else {
-                // CASE >0: Use Firebase Transaction to atomically read & decrement
+            } else if (winningSegment.remaining > 0) {
+                // CASE >0: Use atomic increment(-1) to decrement by 1
                 const prizeRef = db.collection('prizes').doc(winningSegment.id);
-                await db.runTransaction(async (transaction) => {
-                    const prizeDoc = await transaction.get(prizeRef);
-                    if (!prizeDoc.exists) {
-                        console.error('[SPIN] Step 5: Prize document not found!');
-                        return;
-                    }
-                    const freshRemaining = prizeDoc.data().remaining;
-                    console.log('[SPIN] Step 5 (transaction): Fresh remaining from DB:', freshRemaining);
-                    
-                    if (typeof freshRemaining === 'number' && freshRemaining > 0) {
-                        // Decrement by 1
-                        const newVal = freshRemaining - 1;
-                        transaction.update(prizeRef, { remaining: newVal });
-                        console.log('[SPIN] Step 5 (transaction): Decremented remaining from', freshRemaining, 'to', newVal);
-                    } else if (freshRemaining === 0) {
-                        // CASE 0: Should not happen, but safety check
-                        console.warn('[SPIN] Step 5 (transaction): remaining is already 0, not decrementing');
-                    } else {
-                        console.warn('[SPIN] Step 5 (transaction): Unexpected remaining value:', freshRemaining);
-                    }
+                await prizeRef.update({
+                    remaining: firebase.firestore.FieldValue.increment(-1)
                 });
+                console.log('[SPIN] Step 5: Decremented remaining from', winningSegment.remaining, 'to', winningSegment.remaining - 1);
+            } else {
+                // CASE 0: Should not happen (filtered out), but log it
+                console.warn('[SPIN] Step 5: remaining is 0, this should not happen!');
             }
             
             // === STEP 6: Save winner to Firebase ===
