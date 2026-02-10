@@ -155,10 +155,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function getEligibleIndices() {
         const eligible = [];
         segments.forEach((seg, index) => {
-            if (seg.enabled && (seg.remaining === -1 || seg.remaining > 0)) {
+            const isEligible = seg.enabled && (seg.remaining === -1 || seg.remaining > 0);
+            console.log(`[ELIGIBLE] Segment ${index}: "${seg.name}" | enabled=${seg.enabled} | remaining=${seg.remaining} | eligible=${isEligible}`);
+            if (isEligible) {
                 eligible.push(index);
             }
         });
+        console.log(`[ELIGIBLE] Total eligible: ${eligible.length} / ${segments.length}`);
         return eligible;
     }
 
@@ -169,64 +172,97 @@ document.addEventListener('DOMContentLoaded', function() {
         isSpinning = true;
         spinBtn.disabled = true;
         
-        // === STEP 1: Load fresh data from Firebase BEFORE spinning ===
         try {
+            // === STEP 1: Load fresh data from Firebase BEFORE spinning ===
+            console.log('[SPIN] Step 1: Loading fresh prizes from Firebase...');
             await loadPrizes();
-        } catch (error) {
-            console.error('Error loading prizes before spin:', error);
-            isSpinning = false;
-            spinBtn.disabled = false;
-            return;
-        }
-        
-        // === STEP 2: Determine eligible segments ===
-        const eligibleIndices = getEligibleIndices();
-        
-        if (eligibleIndices.length === 0) {
-            alert('Không có giải thưởng nào có thể trúng!');
-            isSpinning = false;
-            spinBtn.disabled = false;
-            return;
-        }
-        
-        // === STEP 3: Pick random winner from eligible ===
-        const winningIndex = eligibleIndices[Math.floor(Math.random() * eligibleIndices.length)];
-        const winningSegment = segments[winningIndex];
-        
-        // === STEP 4: Animate the wheel ===
-        await animateWheel(winningIndex);
-        
-        // === STEP 5: After wheel stops, update Firebase remaining ===
-        const currentRemaining = parseInt(winningSegment.remaining, 10);
-        if (!isNaN(currentRemaining) && currentRemaining > 0) {
-            const newRemaining = currentRemaining - 1;
-            await db.collection('prizes').doc(winningSegment.id).update({
-                remaining: newRemaining
+            
+            // === STEP 2: Determine eligible segments ===
+            const eligibleIndices = getEligibleIndices();
+            console.log('[SPIN] Step 2: Eligible indices:', eligibleIndices.length, 'out of', segments.length);
+            
+            if (eligibleIndices.length === 0) {
+                alert('Không có giải thưởng nào có thể trúng!');
+                return; // finally block handles cleanup
+            }
+            
+            // === STEP 3: Pick random winner from eligible ===
+            const winningIndex = eligibleIndices[Math.floor(Math.random() * eligibleIndices.length)];
+            const winningSegment = segments[winningIndex];
+            console.log('[SPIN] Step 3: Winner picked:', winningSegment.name, '| remaining:', winningSegment.remaining, '| id:', winningSegment.id);
+            
+            // === STEP 4: Animate the wheel ===
+            console.log('[SPIN] Step 4: Animating wheel...');
+            await animateWheel(winningIndex);
+            console.log('[SPIN] Step 4: Animation complete');
+            
+            // === STEP 5: Update remaining count in Firebase using Transaction ===
+            // 3 cases:
+            //   remaining > 0  → decrease by 1
+            //   remaining === 0 → should NEVER reach here (filtered by getEligibleIndices)
+            //   remaining === -1 → unlimited, do NOT decrease
+            console.log('[SPIN] Step 5: Updating remaining. Current value:', winningSegment.remaining);
+            
+            if (winningSegment.remaining === -1) {
+                // CASE -1: Unlimited prize → no update needed
+                console.log('[SPIN] Step 5: Prize is unlimited (-1), no update needed');
+            } else {
+                // CASE >0: Use Firebase Transaction to atomically read & decrement
+                const prizeRef = db.collection('prizes').doc(winningSegment.id);
+                await db.runTransaction(async (transaction) => {
+                    const prizeDoc = await transaction.get(prizeRef);
+                    if (!prizeDoc.exists) {
+                        console.error('[SPIN] Step 5: Prize document not found!');
+                        return;
+                    }
+                    const freshRemaining = prizeDoc.data().remaining;
+                    console.log('[SPIN] Step 5 (transaction): Fresh remaining from DB:', freshRemaining);
+                    
+                    if (typeof freshRemaining === 'number' && freshRemaining > 0) {
+                        // Decrement by 1
+                        const newVal = freshRemaining - 1;
+                        transaction.update(prizeRef, { remaining: newVal });
+                        console.log('[SPIN] Step 5 (transaction): Decremented remaining from', freshRemaining, 'to', newVal);
+                    } else if (freshRemaining === 0) {
+                        // CASE 0: Should not happen, but safety check
+                        console.warn('[SPIN] Step 5 (transaction): remaining is already 0, not decrementing');
+                    } else {
+                        console.warn('[SPIN] Step 5 (transaction): Unexpected remaining value:', freshRemaining);
+                    }
+                });
+            }
+            
+            // === STEP 6: Save winner to Firebase ===
+            console.log('[SPIN] Step 6: Saving winner...');
+            await db.collection('winners').add({
+                name: playerName,
+                prize: winningSegment.name,
+                prizeValue: winningSegment.value,
+                prizeId: winningSegment.id,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
-        } else if (isNaN(currentRemaining) || currentRemaining === -1) {
-            // Unlimited prize - no update needed
+            console.log('[SPIN] Step 6: Winner saved');
+            
+            // === STEP 7: Reload data from Firebase to sync ===
+            console.log('[SPIN] Step 7: Reloading prizes from Firebase...');
+            await loadPrizes();
+            console.log('[SPIN] Step 7: Prizes reloaded');
+            
+            // === STEP 8: Show result ===
+            winnerNameSpan.textContent = playerName;
+            prizeValueSpan.textContent = winningSegment.name;
+            resultModal.classList.add('show');
+            console.log('[SPIN] Step 8: Result shown');
+            
+        } catch (error) {
+            console.error('[SPIN] Error during spin:', error);
+            alert('Có lỗi xảy ra! Vui lòng thử lại.');
+        } finally {
+            // === ALWAYS unlock spin button ===
+            isSpinning = false;
+            spinBtn.disabled = false;
+            console.log('[SPIN] Spin complete, button unlocked');
         }
-        
-        // === STEP 6: Save winner to Firebase ===
-        await db.collection('winners').add({
-            name: playerName,
-            prize: winningSegment.name,
-            prizeValue: winningSegment.value,
-            prizeId: winningSegment.id,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        // === STEP 7: Reload data from Firebase to sync ===
-        await loadPrizes();
-        
-        // === STEP 8: Allow spinning again ===
-        isSpinning = false;
-        spinBtn.disabled = false;
-        
-        // === STEP 9: Show result ===
-        winnerNameSpan.textContent = playerName;
-        prizeValueSpan.textContent = winningSegment.name;
-        resultModal.classList.add('show');
     }
 
     // Animate wheel - returns a Promise that resolves when animation is done
