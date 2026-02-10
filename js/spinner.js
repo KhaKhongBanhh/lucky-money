@@ -197,11 +197,14 @@ document.addEventListener('DOMContentLoaded', function() {
         await animateWheel(winningIndex);
         
         // === STEP 5: After wheel stops, update Firebase remaining ===
-        if (winningSegment.remaining > 0) {
-            const newRemaining = winningSegment.remaining - 1;
+        const currentRemaining = parseInt(winningSegment.remaining, 10);
+        if (!isNaN(currentRemaining) && currentRemaining > 0) {
+            const newRemaining = currentRemaining - 1;
             await db.collection('prizes').doc(winningSegment.id).update({
                 remaining: newRemaining
             });
+        } else if (isNaN(currentRemaining) || currentRemaining === -1) {
+            // Unlimited prize - no update needed
         }
         
         // === STEP 6: Save winner to Firebase ===

@@ -229,6 +229,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('prizeModalTitle').textContent = 'Thêm mệnh giá mới';
         document.getElementById('prizeId').value = '';
         prizeForm.reset();
+        document.getElementById('prizeRemainingType').value = 'unlimited';
+        document.getElementById('prizeRemainingNumber').style.display = 'none';
+        document.getElementById('prizeRemainingNumber').value = 1;
         prizeModal.classList.add('show');
     });
 
@@ -245,7 +248,18 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('prizeSlots').value = data.slots;
             document.getElementById('prizeColor').value = data.color;
             document.getElementById('prizeEnabled').checked = data.enabled;
-            document.getElementById('prizeRemaining').value = data.remaining !== undefined ? data.remaining : -1;
+            
+            // Set remaining fields
+            const remaining = data.remaining !== undefined ? parseInt(data.remaining, 10) : -1;
+            if (remaining === -1 || isNaN(remaining)) {
+                document.getElementById('prizeRemainingType').value = 'unlimited';
+                document.getElementById('prizeRemainingNumber').style.display = 'none';
+                document.getElementById('prizeRemainingNumber').value = 1;
+            } else {
+                document.getElementById('prizeRemainingType').value = 'limited';
+                document.getElementById('prizeRemainingNumber').style.display = 'block';
+                document.getElementById('prizeRemainingNumber').value = remaining;
+            }
             
             prizeModal.classList.add('show');
         } catch (error) {
@@ -258,13 +272,22 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         
         const id = document.getElementById('prizeId').value;
+        
+        // Calculate remaining value
+        const remainingType = document.getElementById('prizeRemainingType').value;
+        let remainingValue = -1;
+        if (remainingType === 'limited') {
+            remainingValue = parseInt(document.getElementById('prizeRemainingNumber').value, 10);
+            if (isNaN(remainingValue) || remainingValue < 0) remainingValue = 0;
+        }
+        
         const prizeData = {
             name: document.getElementById('prizeName').value,
             value: parseInt(document.getElementById('prizeValue').value),
             slots: parseInt(document.getElementById('prizeSlots').value),
             color: document.getElementById('prizeColor').value,
             enabled: document.getElementById('prizeEnabled').checked,
-            remaining: parseInt(document.getElementById('prizeRemaining').value)
+            remaining: remainingValue
         };
         
         try {

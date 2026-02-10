@@ -103,19 +103,11 @@
                     </div>
                     <div class="form-group" id="remainingGroup">
                         <label>Số lượng giải còn lại:</label>
-                        <select id="prizeRemaining">
-                            <option value="-1">Không giới hạn</option>
-                            <option value="0">0</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="10">10</option>
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
+                        <select id="prizeRemainingType" onchange="document.getElementById('prizeRemainingNumber').style.display = this.value === 'limited' ? 'block' : 'none'">
+                            <option value="unlimited">Không giới hạn</option>
+                            <option value="limited">Giới hạn số lượng</option>
                         </select>
+                        <input type="number" id="prizeRemainingNumber" min="0" value="1" style="display:none; margin-top:8px;" placeholder="Nhập số lượng">
                     </div>
                     <button type="submit" class="btn btn-primary">Lưu</button>
                 </form>
