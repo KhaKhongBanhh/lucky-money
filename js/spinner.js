@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const prize = { id: doc.id, ...doc.data() };
                 prizes.push(prize);
                 allPrizes.push(prize);
+                
+                // Debug: Log each prize's remaining value
+                console.log(`Loaded prize: "${prize.name}", enabled: ${prize.enabled}, remaining: ${prize.remaining}`);
             });
             
             // Calculate total slots
@@ -168,6 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Get indices of ENABLED segments that have remaining stock
         const enabledIndices = [];
+        const debugInfo = [];
         segments.forEach((segment, index) => {
             // Parse remaining as integer, default to -1 (unlimited) if not set
             let remaining = -1;
@@ -180,10 +184,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // remaining === -1 means unlimited
             // remaining > 0 means has stock
             // remaining === 0 means out of stock - skip
-            if (segment.enabled && (remaining === -1 || remaining > 0)) {
+            const canWin = segment.enabled && (remaining === -1 || remaining > 0);
+            debugInfo.push(`${segment.name}: enabled=${segment.enabled}, remaining=${remaining}, canWin=${canWin}`);
+            
+            if (canWin) {
                 enabledIndices.push(index);
             }
         });
+        
+        console.log('Eligible segments:', debugInfo.filter((v, i, a) => a.indexOf(v) === i).join(' | '));
         
         if (enabledIndices.length === 0) {
             alert('Không có giải thưởng nào được kích hoạt!');
@@ -287,26 +296,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            console.log(`Prize "${prize.name}" remaining updated: ${remaining} -> ${newRemaining}`);
+            // UPDATE FIREBASE IMMEDIATELY - WAIT for it to complete
+            try {
+                await db.collection('prizes').doc(prize.id).update({
+                    remaining: newRemaining
+                });
+                console.log(`Firebase updated: Prize "${prize.name}" remaining: ${remaining} -> ${newRemaining}`);
+            } catch (error) {
+                console.error('Error updating Firebase remaining:', error);
+            }
         }
         
-        // NOW allow spinning again (after local update is done)
+        // NOW allow spinning again (after Firebase update is done)
         isSpinning = false;
         spinBtn.disabled = false;
         
-        // Show the result modal
+        // Show the result modal and save winner
         showResult(prize);
     }
 
-    // Show result and save to Firebase
+    // Show result and save winner to Firebase
     async function showResult(prize) {
         winnerNameSpan.textContent = playerName;
         prizeValueSpan.textContent = prize.name;
         resultModal.classList.add('show');
         
-        // Save to Firebase (remaining was already updated locally in updateRemainingAndShowResult)
+        // Save winner to Firebase
         try {
-            // Save winner with prizeId for tracking
             await db.collection('winners').add({
                 name: playerName,
                 prize: prize.name,
@@ -314,21 +330,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 prizeId: prize.id,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
-            
-            // Update Firebase with new remaining count
-            // Get current remaining from local prize (already updated)
-            let remaining = -1;
-            if (prize.remaining !== undefined && prize.remaining !== null) {
-                remaining = parseInt(prize.remaining, 10);
-                if (isNaN(remaining)) remaining = -1;
-            }
-            
-            // Only update Firebase if remaining is a valid number (not unlimited)
-            if (remaining >= 0) {
-                await db.collection('prizes').doc(prize.id).update({
-                    remaining: remaining
-                });
-            }
         } catch (error) {
             console.error('Error saving winner:', error);
         }
