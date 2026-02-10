@@ -203,19 +203,24 @@ document.addEventListener('DOMContentLoaded', function() {
             //   remaining === -1 → unlimited, do NOT decrease
             console.log('[SPIN] Step 5: Updating remaining. Current value:', winningSegment.remaining);
             
-            if (winningSegment.remaining === -1) {
-                // CASE -1: Unlimited prize → no update needed
-                console.log('[SPIN] Step 5: Prize is unlimited (-1), no update needed');
-            } else if (winningSegment.remaining > 0) {
-                // CASE >0: Use atomic increment(-1) to decrement by 1
-                const prizeRef = db.collection('prizes').doc(winningSegment.id);
-                await prizeRef.update({
-                    remaining: firebase.firestore.FieldValue.increment(-1)
-                });
-                console.log('[SPIN] Step 5: Decremented remaining from', winningSegment.remaining, 'to', winningSegment.remaining - 1);
-            } else {
-                // CASE 0: Should not happen (filtered out), but log it
-                console.warn('[SPIN] Step 5: remaining is 0, this should not happen!');
+            try {
+                if (winningSegment.remaining === -1) {
+                    // CASE -1: Unlimited prize → no update needed
+                    console.log('[SPIN] Step 5: Prize is unlimited (-1), no update needed');
+                } else if (winningSegment.remaining > 0) {
+                    // CASE >0: Use atomic increment(-1) to decrement by 1
+                    const prizeRef = db.collection('prizes').doc(winningSegment.id);
+                    await prizeRef.update({
+                        remaining: firebase.firestore.FieldValue.increment(-1)
+                    });
+                    console.log('[SPIN] Step 5: Decremented remaining from', winningSegment.remaining, 'to', winningSegment.remaining - 1);
+                } else {
+                    // CASE 0: Should not happen (filtered out), but log it
+                    console.warn('[SPIN] Step 5: remaining is 0, this should not happen!');
+                }
+            } catch (err) {
+                console.error('[SPIN] Step 5: Failed to update remaining:', err.message);
+                // Continue anyway — still save winner and show result
             }
             
             // === STEP 6: Save winner to Firebase ===
