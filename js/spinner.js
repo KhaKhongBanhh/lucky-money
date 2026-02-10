@@ -169,9 +169,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get indices of ENABLED segments that have remaining stock
         const enabledIndices = [];
         segments.forEach((segment, index) => {
-            const remaining = segment.remaining !== undefined ? segment.remaining : -1;
+            // Parse remaining as integer, default to -1 (unlimited) if not set
+            let remaining = -1;
+            if (segment.remaining !== undefined && segment.remaining !== null) {
+                remaining = parseInt(segment.remaining, 10);
+                if (isNaN(remaining)) remaining = -1;
+            }
+            
             // Only allow spinning to enabled prizes with remaining > 0 or unlimited (-1)
-            if (segment.enabled && remaining !== 0) {
+            // remaining === -1 means unlimited
+            // remaining > 0 means has stock
+            // remaining === 0 means out of stock - skip
+            if (segment.enabled && (remaining === -1 || remaining > 0)) {
                 enabledIndices.push(index);
             }
         });
@@ -240,23 +249,62 @@ document.addEventListener('DOMContentLoaded', function() {
             if (progress < 1) {
                 requestAnimationFrame(animate);
             } else {
-                // Spinning complete
-                isSpinning = false;
-                spinBtn.disabled = false;
-                showResult(winningSegment);
+                // Spinning complete - update remaining IMMEDIATELY before allowing next spin
+                updateRemainingAndShowResult(winningSegment);
             }
         }
         
         animate();
     }
+    
+    // Update remaining count immediately and show result
+    async function updateRemainingAndShowResult(prize) {
+        // Parse remaining as integer
+        let remaining = -1;
+        if (prize.remaining !== undefined && prize.remaining !== null) {
+            remaining = parseInt(prize.remaining, 10);
+            if (isNaN(remaining)) remaining = -1;
+        }
+        
+        // Decrease remaining count IMMEDIATELY if not unlimited (remaining > 0)
+        if (remaining > 0) {
+            const newRemaining = remaining - 1;
+            
+            // Update local segments IMMEDIATELY so next spin uses correct value
+            segments.forEach(seg => {
+                if (seg.id === prize.id) {
+                    seg.remaining = newRemaining;
+                }
+            });
+            
+            // Also update the prize object itself
+            prize.remaining = newRemaining;
+            
+            // Update in prizes array as well
+            prizes.forEach(p => {
+                if (p.id === prize.id) {
+                    p.remaining = newRemaining;
+                }
+            });
+            
+            console.log(`Prize "${prize.name}" remaining updated: ${remaining} -> ${newRemaining}`);
+        }
+        
+        // NOW allow spinning again (after local update is done)
+        isSpinning = false;
+        spinBtn.disabled = false;
+        
+        // Show the result modal
+        showResult(prize);
+    }
 
-    // Show result
+    // Show result and save to Firebase
     async function showResult(prize) {
         winnerNameSpan.textContent = playerName;
         prizeValueSpan.textContent = prize.name;
         resultModal.classList.add('show');
         
-        // Save to Firebase
+        // Save to Firebase (remaining was already updated locally in updateRemainingAndShowResult)
         try {
             // Save winner with prizeId for tracking
             await db.collection('winners').add({
@@ -267,24 +315,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            // Decrease remaining count if not unlimited
-            const remaining = prize.remaining !== undefined ? prize.remaining : -1;
-            if (remaining > 0) {
-                const newRemaining = remaining - 1;
-                
-                // Update local segments IMMEDIATELY so next spin uses correct value
-                segments.forEach(seg => {
-                    if (seg.id === prize.id) {
-                        seg.remaining = newRemaining;
-                    }
-                });
-                
-                // Also update the prize object itself
-                prize.remaining = newRemaining;
-                
-                // Update Firebase
+            // Update Firebase with new remaining count
+            // Get current remaining from local prize (already updated)
+            let remaining = -1;
+            if (prize.remaining !== undefined && prize.remaining !== null) {
+                remaining = parseInt(prize.remaining, 10);
+                if (isNaN(remaining)) remaining = -1;
+            }
+            
+            // Only update Firebase if remaining is a valid number (not unlimited)
+            if (remaining >= 0) {
                 await db.collection('prizes').doc(prize.id).update({
-                    remaining: newRemaining
+                    remaining: remaining
                 });
             }
         } catch (error) {
