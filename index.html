@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vòng Quay May Mắn - Năm Mới</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="welcome-screen">
+            <h1>🎊 VÒNG QUAY MAY MẮN 🎊</h1>
+            <h2>Chúc Mừng Năm Mới</h2>
+            
+            <div class="spinner-preview">
+                <div class="wheel-preview"></div>
+            </div>
+
+            <div class="input-section">
+                <p>Vui lòng nhập họ tên để tham gia</p>
+                <input type="text" id="customerName" placeholder="Nhập họ tên của bạn..." required>
+                <button id="continueBtn" class="btn btn-primary">Tiếp tục</button>
+            </div>
+
+            <div class="admin-link">
+                <button id="adminLoginBtn" class="btn btn-secondary">Đăng nhập Admin</button>
+            </div>
+        </div>
+
+        <!-- Admin Login Modal -->
+        <div id="adminModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Đăng nhập Admin</h2>
+                <form id="adminLoginForm">
+                    <input type="email" id="adminEmail" placeholder="Email" required>
+                    <input type="password" id="adminPassword" placeholder="Mật khẩu" required>
+                    <button type="submit" class="btn btn-primary">Đăng nhập</button>
+                </form>
+                <p id="loginError" class="error-message"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

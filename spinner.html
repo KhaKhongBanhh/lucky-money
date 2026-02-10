@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quay Số May Mắn</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container spinner-page">
+        <h1>🎊 VÒNG QUAY MAY MẮN 🎊</h1>
+        <p class="welcome-text">Xin chào, <span id="playerName"></span>!</p>
+
+        <div class="wheel-container">
+            <div class="wheel-pointer">▼</div>
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <button id="spinBtn" class="btn btn-spin">QUAY NGAY!</button>
+
+        <!-- Result Modal -->
+        <div id="resultModal" class="modal">
+            <div class="modal-content result-modal">
+                <div class="confetti"></div>
+                <h2>🎉 CHÚC MỪNG! 🎉</h2>
+                <p class="result-name"><span id="winnerName"></span></p>
+                <p class="result-prize">Bạn đã trúng:</p>
+                <h3 id="prizeValue" class="prize-value"></h3>
+                <button id="closeResultBtn" class="btn btn-primary">Đóng</button>
+            </div>
+        </div>
+
+        <a href="index.html" class="back-link">← Quay lại trang chủ</a>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/spinner.js"></script>
+</body>
+</html>

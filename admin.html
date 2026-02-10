@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Quản lý vòng quay</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <h1>🎛️ Quản lý Vòng Quay May Mắn</h1>
+            <button id="logoutBtn" class="btn btn-secondary">Đăng xuất</button>
+        </header>
+
+        <div class="admin-content">
+            <!-- Statistics Section -->
+            <section class="admin-section">
+                <h2>📊 Thống kê người trúng giải</h2>
+                <div class="stats-summary">
+                    <div class="stat-card">
+                        <h3 id="totalWinners">0</h3>
+                        <p>Tổng người trúng</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalValue">0đ</h3>
+                        <p>Tổng giá trị giải</p>
+                    </div>
+                </div>
+                <div class="table-actions">
+                    <button id="deleteAllWinnersBtn" class="btn btn-danger">🗑️ Xóa tất cả</button>
+                </div>
+                <div class="table-container">
+                    <table id="winnersTable">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Họ tên</th>
+                                <th>Giải thưởng</th>
+                                <th>Thời gian</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="winnersBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Prize Management Section -->
+            <section class="admin-section">
+                <h2>🎁 Quản lý mệnh giá giải thưởng</h2>
+                <button id="addPrizeBtn" class="btn btn-primary">+ Thêm mệnh giá mới</button>
+                
+                <div class="table-container">
+                    <table id="prizesTable">
+                        <thead>
+                            <tr>
+                                <th>Mệnh giá</th>
+                                <th>Số ô</th>
+                                <th>Màu sắc</th>
+                                <th>Cho phép trúng</th>
+                                <th>Còn lại</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prizesBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Add/Edit Prize Modal -->
+        <div id="prizeModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="prizeModalTitle">Thêm mệnh giá mới</h2>
+                <form id="prizeForm">
+                    <input type="hidden" id="prizeId">
+                    <div class="form-group">
+                        <label>Tên giải thưởng:</label>
+                        <input type="text" id="prizeName" placeholder="VD: 100.000đ" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Giá trị (số):</label>
+                        <input type="number" id="prizeValue" placeholder="VD: 100000" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Số ô trong vòng quay:</label>
+                        <input type="number" id="prizeSlots" min="1" max="10" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Màu sắc:</label>
+                        <input type="color" id="prizeColor" value="#FF6B6B">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="prizeEnabled" checked>
+                            Cho phép trúng giải này
+                        </label>
+                    </div>
+                    <div class="form-group" id="remainingGroup">
+                        <label>Số lượng giải còn lại:</label>
+                        <select id="prizeRemaining">
+                            <option value="-1">Không giới hạn</option>
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Modal -->
+        <div id="deleteModal" class="modal">
+            <div class="modal-content">
+                <h2>Xác nhận xóa</h2>
+                <p>Bạn có chắc chắn muốn xóa mệnh giá này?</p>
+                <div class="modal-actions">
+                    <button id="confirmDeleteBtn" class="btn btn-danger">Xóa</button>
+                    <button id="cancelDeleteBtn" class="btn btn-secondary">Hủy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Winner Modal -->
+        <div id="deleteWinnerModal" class="modal">
+            <div class="modal-content">
+                <h2>Xác nhận xóa</h2>
+                <p id="deleteWinnerText">Bạn có chắc chắn muốn xóa người trúng giải này?</p>
+                <div class="modal-actions">
+                    <button id="confirmDeleteWinnerBtn" class="btn btn-danger">Xóa</button>
+                    <button id="cancelDeleteWinnerBtn" class="btn btn-secondary">Hủy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
