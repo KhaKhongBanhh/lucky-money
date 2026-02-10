@@ -275,28 +275,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isNaN(remaining)) remaining = -1;
         }
         
-        // Decrease remaining count IMMEDIATELY if not unlimited (remaining > 0)
+        // Decrease remaining count if not unlimited (remaining > 0)
         if (remaining > 0) {
             const newRemaining = remaining - 1;
             
-            // Update local segments IMMEDIATELY so next spin uses correct value
-            segments.forEach(seg => {
-                if (seg.id === prize.id) {
-                    seg.remaining = newRemaining;
-                }
-            });
-            
-            // Also update the prize object itself
-            prize.remaining = newRemaining;
-            
-            // Update in prizes array as well
-            prizes.forEach(p => {
-                if (p.id === prize.id) {
-                    p.remaining = newRemaining;
-                }
-            });
-            
-            // UPDATE FIREBASE IMMEDIATELY - WAIT for it to complete
+            // 1. UPDATE FIREBASE FIRST - WAIT for it to complete
             try {
                 await db.collection('prizes').doc(prize.id).update({
                     remaining: newRemaining
@@ -307,21 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // NOW allow spinning again (after Firebase update is done)
-        isSpinning = false;
-        spinBtn.disabled = false;
-        
-        // Show the result modal and save winner
-        showResult(prize);
-    }
-
-    // Show result and save winner to Firebase
-    async function showResult(prize) {
-        winnerNameSpan.textContent = playerName;
-        prizeValueSpan.textContent = prize.name;
-        resultModal.classList.add('show');
-        
-        // Save winner to Firebase
+        // 2. Save winner to Firebase
         try {
             await db.collection('winners').add({
                 name: playerName,
@@ -330,9 +299,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 prizeId: prize.id,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
+            console.log('Winner saved to Firebase');
         } catch (error) {
             console.error('Error saving winner:', error);
         }
+        
+        // 3. RELOAD ALL PRIZES FROM FIREBASE to get fresh data
+        await loadPrizes();
+        console.log('Prizes reloaded from Firebase');
+        
+        // 4. NOW allow spinning again (after Firebase is synced)
+        isSpinning = false;
+        spinBtn.disabled = false;
+        
+        // 5. Show the result modal
+        winnerNameSpan.textContent = playerName;
+        prizeValueSpan.textContent = prize.name;
+        resultModal.classList.add('show');
+    }
+
+    // Show result modal only (called separately if needed)
+    function showResult(prize) {
+        winnerNameSpan.textContent = playerName;
+        prizeValueSpan.textContent = prize.name;
+        resultModal.classList.add('show');
     }
 
     // Event listeners
